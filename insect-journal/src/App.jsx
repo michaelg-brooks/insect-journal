@@ -13,6 +13,17 @@ const METHODS = [
   "Beating sheet", "Aspirator", "Hand collection", "Rearing", "Other"
 ];
 
+const ALLOWED_FIELDS = [
+  "date", "voucher_number", "order", "family", "genus", "species",
+  "common_name", "method", "city", "state", "country", "habitat", "notes"
+];
+
+function sanitize(formData) {
+  return Object.fromEntries(
+    Object.entries(formData).filter(([k]) => ALLOWED_FIELDS.includes(k))
+  );
+}
+
 const emptyForm = {
   date: new Date().toISOString().split("T")[0],
   order: "", family: "", genus: "", species: "", common_name: "",
@@ -131,11 +142,11 @@ export default function App() {
     }
     setSaving(true);
     if (editId !== null) {
-      const { error } = await supabase.from("entries").update({ ...form }).eq("id", editId);
+      const { error } = await supabase.from("entries").update(sanitize(form)).eq("id", editId);
       if (error) { showToast("Failed to update.", "error"); setSaving(false); return; }
       showToast("Entry updated.");
     } else {
-      const { error } = await supabase.from("entries").insert([{ ...form }]);
+      const { error } = await supabase.from("entries").insert([sanitize(form)]);
       if (error) { showToast("Failed to save.", "error"); setSaving(false); return; }
       showToast("Entry added.");
     }
