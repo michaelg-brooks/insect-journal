@@ -5,7 +5,7 @@ const ORDERS = [
   "Coleoptera", "Lepidoptera", "Diptera", "Hymenoptera", "Hemiptera",
   "Orthoptera", "Odonata", "Neuroptera", "Blattodea", "Mantodea",
   "Phasmatodea", "Dermaptera", "Ephemeroptera", "Plecoptera", "Trichoptera",
-  "Siphonaptera", "Thysanoptera", "Psocoptera", "Other"
+  "Siphonaptera", "Thysanoptera", "Psocoptera", "Unknown"
 ];
 
 const METHODS = [
@@ -13,16 +13,11 @@ const METHODS = [
   "Beating sheet", "Aspirator", "Hand collection", "Rearing", "Other"
 ];
 
-const PRESERVATION = [
-  "Pinned", "Ethanol 70%", "Ethanol 95%", "Frozen", "Slide mounted",
-  "Point mounted", "Envelope", "Other"
-];
-
 const emptyForm = {
   date: new Date().toISOString().split("T")[0],
   order: "", family: "", genus: "", species: "", common_name: "",
-  locality: "", state: "", habitat: "", method: "", preservation: "",
-  sex: "", quantity: "1", notes: "", voucher_number: "",
+  city: "", state: "", country: "", habitat: "", method: "",
+  notes: "", voucher_number: "",
 };
 
 function formatDate(iso) {
@@ -31,16 +26,24 @@ function formatDate(iso) {
   return `${m}/${d}/${y}`;
 }
 
+function nextVoucherNumber(entries) {
+  if (!entries.length) return "001";
+  const nums = entries
+    .map(e => parseInt(e.voucher_number, 10))
+    .filter(n => !isNaN(n));
+  if (!nums.length) return "001";
+  const next = Math.max(...nums) + 1;
+  return String(next).padStart(3, "0");
+}
+
 function toCSV(entries) {
   const headers = [
     "Voucher #", "Date", "Order", "Family", "Genus", "Species", "Common Name",
-    "Locality", "State", "Habitat", "Collection Method", "Preservation",
-    "Sex", "Quantity", "Notes"
+    "City", "State", "Country", "Habitat", "Collection Method", "Notes"
   ];
   const rows = entries.map(e => [
     e.voucher_number, e.date, e.order, e.family, e.genus, e.species,
-    e.common_name, e.locality, e.state, e.habitat, e.method,
-    e.preservation, e.sex, e.quantity,
+    e.common_name, e.city, e.state, e.country, e.habitat, e.method,
     `"${(e.notes || "").replace(/"/g, '""')}"`
   ].map(v => v ?? "").join(","));
   return [headers.join(","), ...rows].join("\n");
@@ -58,7 +61,7 @@ const inputStyle = {
   width: "100%",
 };
 
-function Field({ label, name, type = "text", options, required, form, setForm }) {
+function Field({ label, name, type = "text", options, required, readOnly, form, setForm }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
       <label style={{ fontSize: 11, letterSpacing: "0.08em", color: "#8aaa6e", fontWeight: 600, textTransform: "uppercase" }}>
@@ -72,7 +75,13 @@ function Field({ label, name, type = "text", options, required, form, setForm })
       ) : type === "textarea" ? (
         <textarea value={form[name] || ""} onChange={e => setForm(f => ({ ...f, [name]: e.target.value }))} rows={4} style={{ ...inputStyle, resize: "vertical" }} />
       ) : (
-        <input type={type} value={form[name] || ""} onChange={e => setForm(f => ({ ...f, [name]: e.target.value }))} style={inputStyle} />
+        <input
+          type={type}
+          value={form[name] || ""}
+          onChange={e => setForm(f => ({ ...f, [name]: e.target.value }))}
+          readOnly={readOnly}
+          style={{ ...inputStyle, ...(readOnly ? { opacity: 0.6, cursor: "default" } : {}) }}
+        />
       )}
     </div>
   );
@@ -107,6 +116,12 @@ export default function App() {
   function showToast(msg, type = "success") {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 2800);
+  }
+
+  function openNewForm(allEntries) {
+    setForm({ ...emptyForm, voucher_number: nextVoucherNumber(allEntries) });
+    setEditId(null);
+    setView("form");
   }
 
   async function handleSubmit() {
@@ -160,7 +175,7 @@ export default function App() {
 
   const filtered = entries.filter(e => {
     const q = search.toLowerCase();
-    const matchSearch = !q || [e.order, e.family, e.genus, e.species, e.common_name, e.locality, e.notes, e.voucher_number]
+    const matchSearch = !q || [e.order, e.family, e.genus, e.species, e.common_name, e.city, e.state, e.country, e.notes, e.voucher_number]
       .some(f => (f || "").toLowerCase().includes(q));
     const matchOrder = !filterOrder || e.order === filterOrder;
     return matchSearch && matchOrder;
@@ -185,7 +200,7 @@ export default function App() {
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #3a4a28; border-radius: 4px; }
-        .entry-row { transition: background 0.15s; cursor: pointer; }
+        .entry-row { transition: background 0.15s; }
         .entry-row:hover { background: rgba(138,170,110,0.07) !important; }
         .btn-primary { transition: all 0.15s; }
         .btn-primary:hover { filter: brightness(1.1); }
@@ -194,7 +209,7 @@ export default function App() {
         @media (max-width: 600px) {
           .desktop-only { display: none !important; }
           .header-inner { flex-wrap: wrap; gap: 10px !important; }
-          .list-grid { grid-template-columns: 80px 1fr !important; }
+          .list-grid { grid-template-columns: 80px 1fr 90px !important; }
           .list-grid .col-hide { display: none; }
           .form-grid { grid-template-columns: 1fr !important; }
           .form-grid .full-width { grid-column: 1 !important; }
@@ -214,7 +229,7 @@ export default function App() {
               ↓ CSV
             </button>
             {view !== "form" && (
-              <button onClick={() => { setForm(emptyForm); setEditId(null); setView("form"); }} className="btn-primary" style={{ background: "#8aaa6e", border: "none", borderRadius: 6, padding: "7px 18px", color: "#12150e", fontSize: 13, cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>
+              <button onClick={() => openNewForm(entries)} className="btn-primary" style={{ background: "#8aaa6e", border: "none", borderRadius: 6, padding: "7px 18px", color: "#12150e", fontSize: 13, cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>
                 + New Entry
               </button>
             )}
@@ -233,19 +248,17 @@ export default function App() {
             </div>
             <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <Field label="Date" name="date" type="date" required {...fieldProps} />
-              <Field label="Voucher #" name="voucher_number" {...fieldProps} />
+              <Field label="Voucher #" name="voucher_number" readOnly={!editId} {...fieldProps} />
               <Field label="Order" name="order" options={ORDERS} required {...fieldProps} />
               <Field label="Family" name="family" {...fieldProps} />
               <Field label="Genus" name="genus" {...fieldProps} />
               <Field label="Species" name="species" {...fieldProps} />
               <Field label="Common Name" name="common_name" {...fieldProps} />
-              <Field label="Sex" name="sex" options={["Male", "Female", "Unknown", "Mixed"]} {...fieldProps} />
-              <Field label="Quantity" name="quantity" type="number" {...fieldProps} />
               <Field label="Collection Method" name="method" options={METHODS} {...fieldProps} />
-              <Field label="Preservation" name="preservation" options={PRESERVATION} {...fieldProps} />
+              <Field label="City" name="city" {...fieldProps} />
               <Field label="State / Province" name="state" {...fieldProps} />
               <div className="full-width" style={{ gridColumn: "1 / -1" }}>
-                <Field label="Locality" name="locality" {...fieldProps} />
+                <Field label="Country" name="country" {...fieldProps} />
               </div>
               <div className="full-width" style={{ gridColumn: "1 / -1" }}>
                 <Field label="Habitat" name="habitat" {...fieldProps} />
@@ -285,15 +298,13 @@ export default function App() {
                   ["Family", e.family],
                   ["Genus / Species", [e.genus, e.species].filter(Boolean).join(" ") || null],
                   ["Common Name", e.common_name],
-                  ["Sex", e.sex],
-                  ["Quantity", e.quantity],
                   ["Method", e.method],
-                  ["Preservation", e.preservation],
-                  ["Locality", e.locality],
+                  ["City", e.city],
                   ["State", e.state],
+                  ["Country", e.country],
                   ["Habitat", e.habitat],
-                ].map(([k, v], i) => (
-                  <div key={k} style={{ display: "grid", gridTemplateColumns: "130px 1fr", padding: "11px 16px", borderBottom: i < 11 ? "1px solid rgba(138,170,110,0.07)" : "none", background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent" }}>
+                ].map(([k, v], i, arr) => (
+                  <div key={k} style={{ display: "grid", gridTemplateColumns: "130px 1fr", padding: "11px 16px", borderBottom: i < arr.length - 1 ? "1px solid rgba(138,170,110,0.07)" : "none", background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent" }}>
                     <span style={{ fontSize: 11, color: "#5a6e40", letterSpacing: "0.08em", textTransform: "uppercase", paddingTop: 1 }}>{k}</span>
                     <span style={{ fontSize: 14, color: v ? "#e8ead4" : "#3a4a28" }}>{v || "—"}</span>
                   </div>
@@ -336,18 +347,22 @@ export default function App() {
               </div>
             ) : (
               <div style={{ border: "1px solid rgba(138,170,110,0.12)", borderRadius: 10, overflow: "hidden" }}>
-                <div className="list-grid" style={{ display: "grid", gridTemplateColumns: "90px 1fr 130px 90px", padding: "8px 14px", background: "rgba(138,170,110,0.06)", fontSize: 10, color: "#5a6e40", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                  <span>Date</span><span>Taxon</span><span className="col-hide">Locality</span><span className="col-hide">Method</span>
+                <div className="list-grid" style={{ display: "grid", gridTemplateColumns: "90px 1fr 130px 90px 100px", padding: "8px 14px", background: "rgba(138,170,110,0.06)", fontSize: 10, color: "#5a6e40", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  <span>Date</span><span>Taxon</span><span className="col-hide">City</span><span className="col-hide">Method</span><span style={{ textAlign: "right" }}>Actions</span>
                 </div>
                 {filtered.map(e => (
-                  <div key={e.id} className="entry-row list-grid" onClick={() => { setSelected(e.id); setView("detail"); }} style={{ display: "grid", gridTemplateColumns: "90px 1fr 130px 90px", padding: "12px 14px", borderTop: "1px solid rgba(138,170,110,0.07)", background: "transparent" }}>
-                    <span style={{ fontSize: 12, color: "#5a7040" }}>{formatDate(e.date)}</span>
-                    <span style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div key={e.id} className="entry-row list-grid" style={{ display: "grid", gridTemplateColumns: "90px 1fr 130px 90px 100px", padding: "10px 14px", borderTop: "1px solid rgba(138,170,110,0.07)", background: "transparent", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, color: "#5a7040", cursor: "pointer" }} onClick={() => { setSelected(e.id); setView("detail"); }}>{formatDate(e.date)}</span>
+                    <span style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }} onClick={() => { setSelected(e.id); setView("detail"); }}>
                       {e.genus && e.species ? <em style={{ color: "#c8d8a0" }}>{e.genus} {e.species}</em> : e.family ? <span style={{ color: "#a0b880" }}>{e.family}</span> : <span style={{ color: "#a0b880" }}>{e.order}</span>}
                       {e.common_name && <span style={{ color: "#5a6e40", fontSize: 11, marginLeft: 6 }}>({e.common_name})</span>}
                     </span>
-                    <span className="col-hide" style={{ fontSize: 11, color: "#5a6e40", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.locality || e.state || "—"}</span>
+                    <span className="col-hide" style={{ fontSize: 11, color: "#5a6e40", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.city || e.state || "—"}</span>
                     <span className="col-hide" style={{ fontSize: 11, color: "#5a6e40" }}>{e.method || "—"}</span>
+                    <span style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                      <button onClick={() => handleEdit(e)} style={{ background: "rgba(138,170,110,0.12)", border: "1px solid rgba(138,170,110,0.2)", borderRadius: 5, padding: "4px 10px", color: "#8aaa6e", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Edit</button>
+                      <button onClick={() => setDeleteConfirm(e.id)} style={{ background: "rgba(198,129,90,0.08)", border: "1px solid rgba(198,129,90,0.2)", borderRadius: 5, padding: "4px 10px", color: "#c6815a", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Delete</button>
+                    </span>
                   </div>
                 ))}
               </div>
