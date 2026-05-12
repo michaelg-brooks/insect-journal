@@ -47,6 +47,21 @@ function nextVoucherNumber(entries) {
   return String(next).padStart(3, "0");
 }
 
+const LOCATION_KEY = "insect-journal-last-location";
+const LOCATION_FIELDS = ["city", "state", "country"];
+
+function saveLastLocation(formData) {
+  const loc = Object.fromEntries(LOCATION_FIELDS.map(k => [k, formData[k] || ""]));
+  try { localStorage.setItem(LOCATION_KEY, JSON.stringify(loc)); } catch {}
+}
+
+function loadLastLocation() {
+  try {
+    const raw = localStorage.getItem(LOCATION_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
 function toCSV(entries) {
   const headers = [
     "Voucher #", "Date", "Order", "Family", "Genus", "Species", "Common Name",
@@ -130,7 +145,7 @@ export default function App() {
   }
 
   function openNewForm(allEntries) {
-    setForm({ ...emptyForm, voucher_number: nextVoucherNumber(allEntries) });
+    setForm({ ...emptyForm, ...loadLastLocation(), voucher_number: nextVoucherNumber(allEntries) });
     setEditId(null);
     setView("form");
   }
@@ -149,6 +164,7 @@ export default function App() {
       const { error } = await supabase.from("entries").insert([sanitize(form)]);
       if (error) { showToast("Failed to save.", "error"); setSaving(false); return; }
       showToast("Entry added.");
+      saveLastLocation(form);
     }
     setSaving(false);
     setForm(emptyForm);
