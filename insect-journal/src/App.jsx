@@ -64,7 +64,7 @@ function loadLastLocation() {
 
 function toCSV(entries) {
   const headers = [
-    "Voucher #", "Date", "Order", "Family", "Genus", "Species", "Common Name",
+    "Specimen #", "Date", "Order", "Family", "Genus", "Species", "Common Name",
     "City", "State", "Country", "Habitat", "Collection Method", "Notes"
   ];
   const rows = entries.map(e => [
@@ -236,7 +236,7 @@ export default function App() {
         @media (max-width: 600px) {
           .desktop-only { display: none !important; }
           .header-inner { flex-wrap: wrap; gap: 10px !important; }
-          .list-grid { grid-template-columns: 80px 1fr 90px !important; }
+          .list-grid { grid-template-columns: 44px 72px 1fr 90px !important; }
           .list-grid .col-hide { display: none; }
           .form-grid { grid-template-columns: 1fr !important; }
           .form-grid .full-width { grid-column: 1 !important; }
@@ -275,7 +275,7 @@ export default function App() {
             </div>
             <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <Field label="Date" name="date" type="date" required {...fieldProps} />
-              <Field label="Voucher #" name="voucher_number" readOnly={!editId} {...fieldProps} />
+              <Field label="Specimen #" name="voucher_number" readOnly={!editId} {...fieldProps} />
               <Field label="Order" name="order" options={ORDERS} required {...fieldProps} />
               <Field label="Family" name="family" {...fieldProps} />
               <Field label="Genus" name="genus" {...fieldProps} />
@@ -374,11 +374,12 @@ export default function App() {
               </div>
             ) : (
               <div style={{ border: "1px solid rgba(138,170,110,0.12)", borderRadius: 10, overflow: "hidden" }}>
-                <div className="list-grid" style={{ display: "grid", gridTemplateColumns: "90px 1fr 130px 90px 100px", padding: "8px 14px", background: "rgba(138,170,110,0.06)", fontSize: 10, color: "#5a6e40", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                  <span>Date</span><span>Taxon</span><span className="col-hide">City</span><span className="col-hide">Method</span><span style={{ textAlign: "right" }}>Actions</span>
+                <div className="list-grid" style={{ display: "grid", gridTemplateColumns: "50px 90px 1fr 130px 90px 100px", padding: "8px 14px", background: "rgba(138,170,110,0.06)", fontSize: 10, color: "#5a6e40", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  <span>Spec #</span><span>Date</span><span>Taxon</span><span className="col-hide">City</span><span className="col-hide">Method</span><span style={{ textAlign: "right" }}>Actions</span>
                 </div>
                 {filtered.map(e => (
-                  <div key={e.id} className="entry-row list-grid" style={{ display: "grid", gridTemplateColumns: "90px 1fr 130px 90px 100px", padding: "10px 14px", borderTop: "1px solid rgba(138,170,110,0.07)", background: "transparent", alignItems: "center" }}>
+                  <div key={e.id} className="entry-row list-grid" style={{ display: "grid", gridTemplateColumns: "50px 90px 1fr 130px 90px 100px", padding: "10px 14px", borderTop: "1px solid rgba(138,170,110,0.07)", background: "transparent", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "#3a5a28", cursor: "pointer" }} onClick={() => { setSelected(e.id); setView("detail"); }}>{e.voucher_number || "—"}</span>
                     <span style={{ fontSize: 12, color: "#5a7040", cursor: "pointer" }} onClick={() => { setSelected(e.id); setView("detail"); }}>{formatDate(e.date)}</span>
                     <span style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }} onClick={() => { setSelected(e.id); setView("detail"); }}>
                       {e.genus && e.species ? <em style={{ color: "#c8d8a0" }}>{e.genus} {e.species}</em> : e.family ? <span style={{ color: "#a0b880" }}>{e.family}</span> : <span style={{ color: "#a0b880" }}>{e.order}</span>}
